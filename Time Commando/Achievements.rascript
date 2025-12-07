@@ -1,6 +1,9 @@
 // Time Commando
 // #ID = 9282
 
+// $00E254: [8-bit] value = 0x32 when paused
+function value_when_paused() => byte(0x00E254)
+
 // $0742B8: [32-bit] Paused:
 //          Valid during gameplay
 //          0x00000000: playing
@@ -110,10 +113,10 @@ function weapon_selected() => word(0x08FFA0)
 //          max = 0x57e4
 function time_bar_countdown() => word(0x091C84)
 
-// $097764: [16-bit] Position in the level:
+// $097764: [32-bit] Position in the level:
 //          0x0000: General Begin
 //          0x07d0: Prehistoric Level 1 Begin
-function position_in_the_level() => word(0x097764)
+function position_in_the_level() => dword(0x097764)
 
 // $097890: [16-bit] Weapons: 1st slot
 //          - which weapon from 0 to 4
@@ -174,6 +177,7 @@ function number_of_continues() => byte(0x0979A1)
 //          - Wild west level 1 first enemy;
 //          - Future level 1 first enemy;
 function enemies_health_1() => word(0x097C12)
+DEAD = 0x00
 
 // $0988E2: [16-bit] Enemies' health 5
 //          - Prehistoric level 1 first woman;
@@ -268,6 +272,10 @@ function enemies_health_31() => word(0x09EA42)
 // $09ECD2: [16-bit] Enemies' health 32
 //          - Modern wars level 2 dog 3 before tank
 function enemies_health_32() => word(0x09ECD2)
+
+// $09A512: [16-bit] Enemies' health 33
+//          - Roman Empire level 2 last lion before bull
+function enemies_health_33() => word(0x09A512)
 
 // $0A2DEC: [8-bit] Which Level:
 //          0x00: - Level 1
@@ -381,31 +389,47 @@ function what_item_1_is() => word(0x15284C)
 function item_1() => word(0x15284E)
 
 // $1FF850: [8-bit] Worlds2:
-//          Use with 0x0ab284
-//          0x00 - Prehistory
-//          0x01 - Roman Empire
-//          0x02 - Japanese Middle Age
-//          0x03 - European Middle Age
-//          0x04 - Conquistadors
-//          0x05 - Wild West
-//          0x06 - Modern Wars
-//          0x07 - Future
-//          0x08 - Beyond Time level 1
-//          0x09 - Beyond Time level 2
-//          0x0a - Beyond Time last boss
 //          0x58 - Counting chips screen
 //          0x90 - Loading / Main Menu
 function worlds2() => byte(0x1FF850)
 
-
 // CUSTOM FUNCTIONS
 
-function Cheating() => when_paused() == 1 && button_pressed_x() != 0x00
+function Cheating() =>
+    paused() == PAUSED &&
+    when_paused() == 1 &&
+    button_pressed_x() != 0x00
 
-function CheckWorld(world) {
-    return
-        worlds() == world &&
-        worlds2() == world
+function ElapsedTime() => (level_timer() - prev(inside_levels())) * 2
+
+function EnemiesDead(world) {
+    if (world == PREHISTORY)
+        return
+            enemies_health_11() == DEAD &&
+            enemies_health_12() == DEAD
+    if (world == ROMAN_EMPIRE)
+        return
+            enemies_health_14() == DEAD &&
+            enemies_health_15() == DEAD &&
+            enemies_health_33() == DEAD
+    if (world == JAPANESE_MIDDLE_AGE)
+        return
+            enemies_health_7() == DEAD &&
+            enemies_health_8() == DEAD
+    if (world == EUROPEAN_MIDDLE_AGE)
+        return
+            enemies_health_18() == DEAD
+    if (world == MODERN_WARS)
+        return
+            enemies_health_27() == DEAD &&
+            enemies_health_28() == DEAD &&
+            enemies_health_29() == DEAD &&
+            enemies_health_30() == DEAD &&
+            enemies_health_31() == DEAD &&
+            enemies_health_32() == DEAD
+
+    // Anything else (should not happen)
+    return true
 }
 
 function GotAllWeapons(){
@@ -454,7 +478,7 @@ function InsideGame() => (worlds() == worlds2())
 function IsPlaying() {
     return
         game_mode() == PLAYING &&
-        time_bar_countdown() < prev(time_bar_countdown()) &&
+        paused() == 0x00 &&
         inside_levels() != 0x00
 }
 
@@ -468,7 +492,7 @@ function LeaderText(option) {
 function StartLevel(world, level, noDifficulty) {
     return
         IsPlaying() &&
-        CheckWorld(world) &&
+        worlds() == world &&
         which_level() == level &&
         (difficulty_selected_2() == HARD || noDifficulty) &&
         prev(inside_levels()) == 0x00
@@ -479,15 +503,6 @@ function LevelCleared() {
         inside_levels() != 0x00 &&
         prev(inside_levels()) != inside_levels() &&
         prev(inside_levels()) != 0x00
-}
-
-function TimerMin() {
-    return measured((level_timer() - prev(inside_levels())) * 0.00033)
-}
-
-function TimerSec() {
-    min = measured((level_timer() - prev(inside_levels())) * 0.00033)
-    return measured(((level_timer() - prev(inside_levels())) * 0.02) - (min * 60)
 }
 
 // LOOKUPS
@@ -711,6 +726,14 @@ WeaponEquippedLookUp = {
     0x3d: "crystal stars",
 }
 
+WhenPausedLookup = {
+    0x00: "Continue",
+    0x01: "Sound FX",
+    0x02: "Music",
+    0x03: "Balance",
+    0x04: "Quit",
+}
+
 // ACHIEVEMENTS #############################################################################################################
 
 achievement(
@@ -718,7 +741,7 @@ achievement(
     description = "Kill your first enemy",
     trigger =
         IsPlaying() &&
-        CheckWorld(0) &&
+        worlds() == PREHISTORY &&
         which_level() == LEVEL1 &&
         enemies_health_1() == 0x00 &&
         prev(enemies_health_1()) > 0x00
@@ -731,10 +754,10 @@ for index in range(0x00, 0x07){
         description = "Take all weapons from " + MapLookup[index],
         trigger =
             IsPlaying() &&
-            CheckWorld(index) &&
+            worlds() == index &&
             which_level() <= 1 &&
             GotAllWeapons() &&
-            when_paused() != 0x01 &&
+            paused() != PAUSED &&
             prev(weapons5()) == 0xFFFF
     )
 }
@@ -745,7 +768,7 @@ achievement(
     trigger =
         IsPlaying() &&
         chip_counter_main() == 0x63 && prev(chip_counter_main()) == 0x62 &&
-        when_paused() != 0x01
+        paused() != PAUSED
 )
 
 achievement(
@@ -765,7 +788,7 @@ for index in range(0x00, 0x07){
         title = MapLookup[index] + " Done", points = 3, type="progression",
         description = "Finish " + MapLookup[index] + " Era on any level",
         trigger =
-            CheckWorld(index) &&
+            worlds() == index &&
             which_level() == LEVEL2 &&
             LevelCleared()
     )
@@ -775,7 +798,7 @@ achievement(
     title = "Virus Eradicated", points = 10, type="win_condition",
     description = "Clear the game on any difficulty",
     trigger =
-        CheckWorld(BEYOND_TIME_LAST_BOSS) &&
+        worlds() == BEYOND_TIME_LAST_BOSS &&
         LevelCleared()
 )
 
@@ -786,7 +809,7 @@ for index in range(0x00, 0x07){
         description = "Finish " + MapLookup[index] + " Era on hard difficulty",
         id = (416252 + index),
         trigger =
-            CheckWorld(index) &&
+            worlds() == index &&
             which_level() == LEVEL2 &&
             LevelCleared() &&
             difficulty_selected_2() == HARD
@@ -798,7 +821,7 @@ achievement(
     description = "Clear the game on hard difficulty",
     id = (416260),
     trigger =
-        CheckWorld(BEYOND_TIME_LAST_BOSS) &&
+        worlds() == BEYOND_TIME_LAST_BOSS &&
         LevelCleared() &&
         difficulty_selected_2() == HARD
 )
@@ -810,7 +833,7 @@ for index in range(0x00, 0x07){
             title = HundredPerCentLookup[index + (0x10 * index2)], points = 10, type="missable",
             description = "Collect all chips, items and hidden rooms on " + MapLookup[index] + " on Level " + (index2 + 1),
             trigger =
-                CheckWorld(index) &&
+                worlds() == index &&
                 which_level() == index2 &&
                 LevelCleared() &&
                 GotAllHiddenBonuses(index, index2) &&
@@ -825,7 +848,7 @@ achievement(
     description = "Kill the doggo in Modern Wars Era",
     trigger =
         IsPlaying() &&
-        CheckWorld(MODERN_WARS) &&
+        worlds() == MODERN_WARS &&
         which_level() == LEVEL2 &&
         enemies_health_15() == 0x00 &&
         prev(enemies_health_15()) > 0x00
@@ -840,24 +863,19 @@ achievement(
         stanley_s_energy_bar_size_1_4() == 0x04 &&
         prev(stanley_s_energy_bar_size_1_4()) == 0x03
 )
-/*
+
 achievement(
-    title = "Swallowed by Space", points = 1,
-    description = "Lose all your effort by finishing the future era without spacesuit",
-    id = 416263, badge = "00000", published = "07/04/2024 03:13:17", modified = "08/01/2025 03:27:58",
-    trigger =
-        CheckWorld(0x07) &&
-        which_level() == 0x01 &&
-        paused() == 0x00 &&
-        weapon_selected() != 0x05 &&
-        prev(time_bar_countdown()) == time_bar_countdown()
+    title = "Like a Cat", points = 5,
+    description = "Get the maximum number of continues",
+    trigger = game_mode() == 0x01 && paused() == 0x00 && inside_levels() != 0x00 && stanley_s_health() == 0x80 &&
+              number_of_continues() == 0x03 && prev(number_of_continues()) == 0x02
 )
-*/
+
 achievement(
     title = "Swallowed by Space", points = 1, type="missable",
     description = "Lose all your effort by finishing the future era without spacesuit",
     trigger =
-        CheckWorld(FUTURE) &&
+        worlds() == FUTURE &&
         which_level() == LEVEL2 &&
         weapon_selected() != 0x05 &&
         repeated(10, prev(time_bar_countdown()) == time_bar_countdown()) &&
@@ -869,15 +887,26 @@ achievement(
     description = "Kill the Giant Bear on Hard Difficulty taking no damage",
     trigger =
         IsPlaying() &&
-        CheckWorld(PREHISTORY) &&
+        worlds() ==  PREHISTORY &&
         which_level() == LEVEL2 &&
         difficulty_selected_2() == HARD &&
-        position_in_the_level() > 0xD000 &&
 
-        once(enemies_health_13() < 0x3C && prev(enemies_health_13()) == 0x3C) &&
+        once(
+            position_in_the_level() > 0xD000 &&
+            prev(position_in_the_level()) <= 0xD000
+        ) &&
+
         trigger_when(enemies_health_13() == 0x00) &&
-        never((enemies_health_11() == 0x00 && enemies_health_12() == 0x00 && stanley_s_health() < prev(stanley_s_health()))) &&
-        never((enemies_health_11() == 0x00 && enemies_health_12() == 0x00 && number_of_continues() < prev(number_of_continues())))
+        trigger_when(prev(enemies_health_13()) > 0x00) &&
+
+        never((
+            EnemiesDead(PREHISTORY) &&
+            stanley_s_health() < prev(stanley_s_health()))
+        ) &&
+        never((
+            EnemiesDead(PREHISTORY) &&
+            number_of_continues() < prev(number_of_continues()))
+        )
 )
 
 achievement(
@@ -885,15 +914,26 @@ achievement(
     description = "Kill the Roman Empire's Bull on Hard Difficulty taking no damage",
     trigger =
         IsPlaying() &&
-        CheckWorld(ROMAN_EMPIRE) &&
+        worlds() == ROMAN_EMPIRE &&
         which_level() == LEVEL2 &&
         difficulty_selected_2() == HARD &&
-        position_in_the_level() > 0x9000 &&
 
-        once(enemies_health_16() < 0x14 && prev(enemies_health_16()) == 0x14) &&
+        once(
+            position_in_the_level() > 0x9000 &&
+            prev(position_in_the_level()) <= 0x9000
+        ) &&
+
         trigger_when(enemies_health_16() == 0x00) &&
-        never((enemies_health_14() == 0x00 && enemies_health_15() == 0x00 && stanley_s_health() < prev(stanley_s_health()))) &&
-        never((enemies_health_14() == 0x00 && enemies_health_15() == 0x00 && number_of_continues() < prev(number_of_continues())))
+        trigger_when(prev(enemies_health_16()) > 0x00) &&
+
+        never((
+            EnemiesDead(ROMAN_EMPIRE) &&
+            stanley_s_health() < prev(stanley_s_health()))
+        ) &&
+        never((
+            EnemiesDead(ROMAN_EMPIRE) &&
+            number_of_continues() < prev(number_of_continues()))
+        )
 )
 
 achievement(
@@ -901,15 +941,26 @@ achievement(
     description = "Kill the Japan Middle Age's Dragon on Hard Difficulty taking no damage",
     trigger =
         IsPlaying() &&
-        CheckWorld(JAPANESE_MIDDLE_AGE) &&
+        worlds() == JAPANESE_MIDDLE_AGE &&
         which_level() == LEVEL2 &&
         difficulty_selected_2() == HARD &&
-        position_in_the_level() > 0xA000 &&
 
-        once(enemies_health_9() < 0x28 && prev(enemies_health_9()) == 0x28) &&
+        once(
+            position_in_the_level() > 0xA000 &&
+            prev(position_in_the_level()) <= 0xA000
+        ) &&
+
         trigger_when(enemies_health_9() == 0x00) &&
-        never((enemies_health_7() == 0x00 && enemies_health_8() == 0x00 && stanley_s_health() < prev(stanley_s_health()))) &&
-        never((enemies_health_7() == 0x00 && enemies_health_8() == 0x00 && number_of_continues() < prev(number_of_continues())))
+        trigger_when(prev(enemies_health_9()) > 0x00) &&
+
+        never((
+            EnemiesDead(JAPANESE_MIDDLE_AGE) &&
+            stanley_s_health() < prev(stanley_s_health()))
+        ) &&
+        never((
+            EnemiesDead(JAPANESE_MIDDLE_AGE) &&
+            number_of_continues() < prev(number_of_continues()))
+        )
 )
 
 achievement(
@@ -917,15 +968,26 @@ achievement(
     description = "Kill the European Middle Age's Devil on Hard Difficulty taking no damage",
     trigger =
         IsPlaying() &&
-        CheckWorld(EUROPEAN_MIDDLE_AGE) &&
+        worlds() == EUROPEAN_MIDDLE_AGE &&
         which_level() == LEVEL2 &&
         difficulty_selected_2() == HARD &&
-        position_in_the_level() > 0x8000 &&
 
-        once(enemies_health_19() < 0x78 && prev(enemies_health_19()) == 0x78) &&
+        once(
+            position_in_the_level() < 0x8000 &&
+            prev(position_in_the_level()) >= 0x8000
+        ) &&
+
         trigger_when(enemies_health_19() == 0x00) &&
-        never((enemies_health_18() == 0x00 && stanley_s_health() < prev(stanley_s_health()))) &&
-        never((enemies_health_18() == 0x00 && number_of_continues() < prev(number_of_continues())))
+        trigger_when(prev(enemies_health_19()) > 0x00) &&
+
+        never((
+            EnemiesDead(EUROPEAN_MIDDLE_AGE) &&
+            stanley_s_health() < prev(stanley_s_health()))
+        ) &&
+        never((
+            EnemiesDead(EUROPEAN_MIDDLE_AGE) &&
+            number_of_continues() < prev(number_of_continues()))
+        )
 )
 
 achievement(
@@ -933,36 +995,27 @@ achievement(
     description = "Destroy the Modern Wars' Tank on Hard Difficulty taking no damage",
     trigger =
         IsPlaying() &&
-        CheckWorld(MODERN_WARS) &&
+        worlds() == MODERN_WARS &&
         which_level() == LEVEL2 &&
         difficulty_selected_2() == HARD &&
-        position_in_the_level() > 0x8000 &&
 
-        once(enemies_health_25() < 0x1e && prev(enemies_health_25()) == 0x1e) &&
-        trigger_when(enemies_health_25() == 0x00) &&
-
-        never(
-            (enemies_health_27() == 0x00 &&
-             enemies_health_28() == 0x00 &&
-             enemies_health_29() == 0x00 &&
-             enemies_health_30() == 0x00 &&
-             enemies_health_31() == 0x00 &&
-             enemies_health_32() == 0x00 &&
-             stanley_s_health() < prev(stanley_s_health())
-            )
+        once(
+            position_in_the_level() > 0xFFFEF900 &&
+            prev(position_in_the_level()) <= 0xFFFEF900
         ) &&
-        never(
-            (enemies_health_27() == 0x00 &&
-             enemies_health_28() == 0x00 &&
-             enemies_health_29() == 0x00 &&
-             enemies_health_30() == 0x00 &&
-             enemies_health_31() == 0x00 &&
-             enemies_health_32() == 0x00 &&
-             number_of_continues() < prev(number_of_continues())
-            )
+
+        trigger_when(enemies_health_25() == 0x00) &&
+        trigger_when(prev(enemies_health_25()) > 0x00) &&
+
+        never((
+            EnemiesDead(MODERN_WARS) &&
+            stanley_s_health() < prev(stanley_s_health()))
+        ) &&
+        never((
+            EnemiesDead(MODERN_WARS) &&
+            number_of_continues() < prev(number_of_continues()))
         )
 )
-
 
 achievement(
     title = "Hard Times Commando", points = 10,
@@ -1001,7 +1054,7 @@ for index in range(0x00, 0x07){
            StartLevel(index, index2, true),
            Cheating()  || game_mode() != PLAYING || !InsideGame(),
            LevelCleared(),
-           measured((level_timer() - prev(inside_levels())) * 2),
+           measured(ElapsedTime()),
            format = "MILLISECS",    //Actually centiseconds
            lower_is_better = true
         )
@@ -1020,7 +1073,7 @@ for index in range(0x00, 0x07){
            LevelCleared() &&
                 hidden_bonuses() == HiddenBonusLookup[index + (16*index2)] &&
                 memory_clean() == MemoryCleanLookup[index + (16*index2)],
-           measured((level_timer() - prev(inside_levels())) * 2),
+           measured(ElapsedTime()),
            format = "MILLISECS",    //Actually centiseconds
            lower_is_better = true
         )
@@ -1029,8 +1082,8 @@ for index in range(0x00, 0x07){
 
 // RICHPRESENCE #############################################################################################################
 
-rich_presence_conditional_display(game_mode() == PLAYING && time_bar_countdown() < 0x57E4 && time_bar_countdown() > 0x00,
-" Stanley is in Level {0} of {1} Era on {2} difficulty || Weapon: {3} || Energy: {4} || Continues: {5} || Chips: {6} || Timer: {7}m{8}s",
+rich_presence_conditional_display(IsPlaying() && time_bar_countdown() < 0x57E4 && time_bar_countdown() > 0x00,
+" Stanley is in Level {0} of {1} Era on {2} difficulty || Weapon: {3} || Energy: {4} || Continues: {5} || Chips: {6} || Timer: {7}",
     rich_presence_lookup("Level", which_level(), LevelLookup),
     rich_presence_lookup("Era", worlds(), MapLookup, fallback="Somewhere else"),
     rich_presence_lookup("Difficulty", difficulty_selected_2(), DifficultyLookup),
@@ -1038,11 +1091,13 @@ rich_presence_conditional_display(game_mode() == PLAYING && time_bar_countdown()
     rich_presence_lookup("BarSize", stanley_s_energy_bar_size_1_4(), BarSizeLookup),
     rich_presence_lookup("Continues", number_of_continues(), ContinuesLookup),
     rich_presence_value("Chips", chip_counter_main()),
-    rich_presence_value("Timer_min", TimerMin()),
-    rich_presence_value("Timer_sec", TimerSec())
+    rich_presence_value("Timer", ElapsedTime(), "MILLISECS")
 )
 
-rich_presence_conditional_display(paused() == PAUSED, " Paused (Menu Options)")
+rich_presence_conditional_display(paused() == PAUSED,
+    " Paused: --{0}--",
+    rich_presence_lookup("Paused", when_paused(), WhenPausedLookup)
+)
 
 rich_presence_conditional_display(game_mode() == DEMO_MODE, " Demo Mode")
 
