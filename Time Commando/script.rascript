@@ -185,6 +185,11 @@ DEAD = 0x00
 //          - Future level 1 second enemy;
 function enemies_health_2() => word(0x097EA2)
 
+// $0987f2: [16-bit] To use in "Prehistoric Misogynist":
+//          - 0xFFFF: woman not killed
+//          - else: killed
+function misogynist() => word(0x0987f2)
+
 // $0988E2: [16-bit] Enemies' health 5
 //          - Prehistoric level 1 first woman;
 //          - Prehistoric level 2 guy before little apes;
@@ -786,10 +791,11 @@ achievement(
     description = "Don't allow the prehistoric woman to escape and be rewarded for it",
     trigger =
         IsPlaying() &&
+        worlds() == PREHISTORY &&
         which_level() == LEVEL1 &&
-        item_1() != 0xFFFF && prev(item_1()) == 0xFFFF &&
-        what_item_1_is() == 0x02 && prev(what_item_1_is()) == 0x04 &&
-        enemies_health_5() == 0x00 && prev(enemies_health_5()) > 0x00
+        enemies_health_5() == 0x00 &&
+        misogynist() != 0xFFFF &&
+        prev(misogynist()) == 0xFFFF
 )
 
 // Progression achievements
