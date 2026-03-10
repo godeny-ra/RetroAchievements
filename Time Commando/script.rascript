@@ -179,6 +179,12 @@ function number_of_continues() => byte(0x0979A1)
 function enemies_health_1() => word(0x097C12)
 DEAD = 0x00
 
+// $097EA2: [16-bit] Enemies' health 2
+//          - Prehistoric level 1 second enemy;
+//          - Conquistators level 1 first pirate;
+//          - Future level 1 second enemy;
+function enemies_health_2() => word(0x097EA2)
+
 // $0988E2: [16-bit] Enemies' health 5
 //          - Prehistoric level 1 first woman;
 //          - Prehistoric level 2 guy before little apes;
@@ -747,7 +753,8 @@ achievement(
         worlds() == PREHISTORY &&
         which_level() == LEVEL1 &&
         enemies_health_1() == 0x00 &&
-        prev(enemies_health_1()) > 0x00
+        prev(enemies_health_1()) > 0x00 &&
+        enemies_health_2() > 0x00
 )
 
 // Weapon Collection achievements //badge = "555930" to "555937"
