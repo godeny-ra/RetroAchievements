@@ -438,7 +438,8 @@ function GotAllWeapons(){
         weapons2() != 0xffff &&
         weapons3() != 0xffff &&
         weapons4() != 0xffff &&
-        weapons5() != 0xffff
+        weapons5() != 0xffff &&
+        weapons5() != weapons4()
 }
 
 function GotAllSecretRooms(world, level){
@@ -479,7 +480,9 @@ function IsPlaying() {
     return
         game_mode() == PLAYING &&
         paused() == 0x00 &&
-        inside_levels() != 0x00
+        inside_levels() != 0x00 &&
+        time_bar_countdown() < 0x57e4 &&
+        time_bar_countdown() > 0x0000
 }
 
 function LeaderText(option) {
