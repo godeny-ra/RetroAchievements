@@ -883,8 +883,10 @@ achievement(
 achievement(
     title = "Like a Cat", points = 5,
     description = "Get the maximum number of continues",
-    trigger = game_mode() == 0x01 && paused() == 0x00 && inside_levels() != 0x00 && stanley_s_health() == 0x80 &&
-              number_of_continues() == 0x03 && prev(number_of_continues()) == 0x02
+    trigger =
+        IsPlaying() &&
+        number_of_continues() == 0x03 &&
+        prev(number_of_continues()) == 0x02
 )
 
 achievement(
