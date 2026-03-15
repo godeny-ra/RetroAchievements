@@ -1,9 +1,6 @@
 // Time Commando
 // #ID = 9282
 
-// $00E254: [8-bit] value = 0x32 when paused
-function value_when_paused() => byte(0x00E254)
-
 // $0742B8: [32-bit] Paused:
 //          Valid during gameplay
 //          0x00000000: playing
@@ -107,16 +104,21 @@ function button_pressed_x() => bit6(0x0796DC)
 function hidden_bonuses() => word(0x07B790)
 
 // $08FFA0: [16-bit] Weapon selected
+// Values range from 0 (bare hand) to 5, representing all the weapons
 function weapon_selected() => word(0x08FFA0)
 
-// $091C84: [16-bit] Time bar [countdown]
-//          max = 0x57e4
+// $091C84: [16-bit] Time bar
+// Starts at 0x57e4 and counts down to 0x00 as the bar increases
 function time_bar_countdown() => word(0x091C84)
 
 // $097764: [32-bit] Position in the level:
 //          0x0000: General Begin
 //          0x07d0: Prehistoric Level 1 Begin
 function position_in_the_level() => dword(0x097764)
+
+// $09776C: [32-bit] Position in the level:
+//          Complementary with 0x097764
+function position_in_the_level_2() => dword(0x09776C)
 
 // $097890: [16-bit] Weapons: 1st slot
 //          - which weapon from 0 to 4
@@ -171,6 +173,23 @@ function stanley_s_energy_bar_size_1_4() => byte(0x0979A0)
 
 // $0979A1: [8-bit] Number of Continues
 function number_of_continues() => byte(0x0979A1)
+
+// $0979A2: [8-bit] Stanley's actions:
+//          0x00 - Doing nothing
+//          0x01 - Interacting
+//          0x02 - Going backwards
+//          0x05 - Going forward
+function stanleys_actions() => byte(0x0979A2)
+
+// $0979AF: [8-bit] Stanley's actions:
+//          Related to 0x0979a2 when interacting
+//          0x04 - Found nothing (Stanley says: Oh?)
+//          0x05 - Did something wrong
+//          0x06 - Found something (Stanley says: Oh yeah!)
+//          0x07 - Found something (Stanley says: Oh yeah!)
+//          0x09 - Found something (Stanley says: Oh yeah!)
+//          0x0b - Found something (Stanley says: Oh yeah!)
+function stanleys_actions2() => byte(0x0979AF)
 
 // $097C12: [16-bit] Enemies' health 1
 //          - Prehistoric level 1 first enemy;
@@ -318,6 +337,15 @@ PLAYING = 0x01
 DEMO_MODE = 0x07
 MAIN_MENU = 0xFFFFFFFF
 
+// $0A7F90: [32-bit] Cheat input block 1
+function cheat_input_block_1() => dword(0x0A7F90)
+
+// $0A7F94: [32-bit] Cheat input block 2
+function cheat_input_block_2() => dword(0x0A7F94)
+
+// $0A7F98: [32-bit] Cheat input block 3
+function cheat_input_block_3() => dword(0x0A7F98)
+
 // $0AB0B8: [16-bit] Memory Clean:
 //          Prehistory
 //          - level 1 = 0x0c;
@@ -404,12 +432,34 @@ function item_1() => word(0x15284E)
 //          0x90 - Loading / Main Menu
 function worlds2() => byte(0x1FF850)
 
+// $1FFA8E: [8-bit] Input detector
+//          Use to prevent cheat input
+//          0x00 - No input detected
+//          0x04 - Input detected
+function input_detector() => byte(0x1FFA8E)
+
 // CUSTOM FUNCTIONS
+
+// function Cheating() =>
+//     paused() == PAUSED &&
+//     when_paused() == 1 &&
+//     button_pressed_x() != 0x00
+
+// function Cheating() =>
+//     paused() == PAUSED &&
+//     when_paused() == 1 &&
+//     repeated(2, input_detector() == 0x04 &&
+//     prev(input_detector()) == 0x00)
 
 function Cheating() =>
     paused() == PAUSED &&
     when_paused() == 1 &&
-    button_pressed_x() != 0x00
+    cheat_input_block_1() == 0x00 &&
+    cheat_input_block_2() == 0x00 &&
+    cheat_input_block_3() == 0x00 &&
+    prev(cheat_input_block_1() != 0x00) &&
+    prev(cheat_input_block_2() != 0x00) &&
+    prev(cheat_input_block_3() != 0x00)
 
 function ElapsedTime() => (level_timer() - prev(inside_levels())) * 2
 
@@ -443,14 +493,12 @@ function EnemiesDead(world) {
     return true
 }
 
-function GotAllWeapons(){
-    return
-        weapons1() != 0xffff &&
-        weapons2() != 0xffff &&
-        weapons3() != 0xffff &&
-        weapons4() != 0xffff &&
-        weapons5() != 0xffff &&
-        weapons5() != weapons4()
+function GotAllHiddenBonuses(world, level){
+    return (hidden_bonuses() == HiddenBonusLookup[world + (0x10 * level)])
+}
+
+function GotAllMemory(world, level){
+    return (memory_clean() == MemoryCleanLookup[world + (0x10 * level)])
 }
 
 function GotAllSecretRooms(world, level){
@@ -477,15 +525,30 @@ function GotAllSecretRooms(world, level){
         hidden_room_4() == 0xff
 }
 
-function GotAllHiddenBonuses(world, level){
-    return (hidden_bonuses() == HiddenBonusLookup[world + (0x10 * level)])
+// function GotAllWeapons(){
+//     return
+//         weapons1() != 0xffff &&
+//         weapons2() != 0xffff &&
+//         weapons3() != 0xffff &&
+//         weapons4() != 0xffff &&
+//         weapons5() != 0xffff &&
+//         weapons5() != weapons4()
+// }
+
+function GotAllWeapons(){
+    return
+        SumWeapons() == 0x0A &&
+        prev(SumWeapons()) != 0x0A
 }
 
-function GotAllMemory(world, level){
-    return (memory_clean() == MemoryCleanLookup[world + (0x10 * level)])
+// function InsideGame() => (worlds() == worlds2())
+
+function InsideGame() {
+    return
+        worlds2() != 0x58 &&
+        worlds2() != 0x90
 }
 
-function InsideGame() => (worlds() == worlds2())
 
 function IsPlaying() {
     return
@@ -494,6 +557,13 @@ function IsPlaying() {
         inside_levels() != 0x00 &&
         time_bar_countdown() < 0x57e4 &&
         time_bar_countdown() > 0x0000
+}
+
+function IsPlayingNoTime() {
+    return
+        game_mode() == PLAYING &&
+        paused() == 0x00 &&
+        inside_levels() != 0x00
 }
 
 function LeaderText(option) {
@@ -512,6 +582,23 @@ function StartLevel(world, level, noDifficulty) {
         prev(inside_levels()) == 0x00
 }
 
+function StartLevelSecret() {
+    return
+        IsPlayingNoTime() &&
+        worlds() == 0x09 &&
+        which_level() == LEVEL2 &&
+        prev(inside_levels()) == 0x00
+}
+
+function SumWeapons(){
+    return
+        weapons1() +
+        weapons2() +
+        weapons3() +
+        weapons4() +
+        weapons5()
+}
+
 function LevelCleared() {
     return
         inside_levels() != 0x00 &&
@@ -526,6 +613,17 @@ BarSizeLookup = {
     0x02: "🟨🟨 - -",
     0x03: "🟨🟨🟨 -",
     0x04: "🟨🟨🟨🟨",
+}
+
+CollectionLookup = {
+    0x00: " on ",
+    0x01: " and find all hidden rooms on ",
+    0x02: " and find all hidden rooms on ",
+    0x03: " and find all hidden rooms on ",
+    0x04: " and find all hidden rooms on ",
+    0x05: " and find all hidden rooms on ",
+    0x06: " and find all hidden rooms on ",
+    0x07: " and find all hidden rooms on ",
 }
 
 ContinuesLookup = {
@@ -635,7 +733,7 @@ MemoryCleanLookup = {
     0x00: 0x0c, //"Prehistory level 1"
     0x01: 0x23, //"Roman Empire level 1",
     0x02: 0x12, //"Japanese Middle Age level 1"
-    0x03: 0x22, //"European Middle Age level 1"
+    0x03: 0x24, //"European Middle Age level 1"
     0x04: 0x1f, //"Conquistadors level 1"
     0x05: 0x1a, //"Wild West level 1"
     0x06: 0x26, //"Modern Wars level 1"
@@ -770,10 +868,8 @@ for index in range(0x00, 0x07){
         trigger =
             IsPlaying() &&
             worlds() == index &&
-            which_level() <= 1 &&
-            GotAllWeapons() &&
-            paused() != PAUSED &&
-            prev(weapons5()) == 0xFFFF
+            which_level() <= LEVEL2 &&
+            GotAllWeapons()
     )
 }
 
@@ -782,17 +878,17 @@ achievement(
     description = "Accumulate 99 integrated circuits",
     trigger =
         IsPlaying() &&
-        chip_counter_main() == 0x63 && prev(chip_counter_main()) == 0x62 &&
-        paused() != PAUSED
+        chip_counter_main() == 0x63 && prev(chip_counter_main()) == 0x62
 )
 
 achievement(
     title = "Prehistoric Misogynist", points = 5, type="missable",
     description = "Don't allow the prehistoric woman to escape and be rewarded for it",
     trigger =
+        once(StartLevel(PREHISTORY, LEVEL1, true)) &&
+        never(Cheating()) &&
+        never(!InsideGame()) &&
         IsPlaying() &&
-        worlds() == PREHISTORY &&
-        which_level() == LEVEL1 &&
         enemies_health_5() == 0x00 &&
         misogynist() != 0xFFFF &&
         prev(misogynist()) == 0xFFFF
@@ -802,19 +898,24 @@ achievement(
 for index in range(0x00, 0x07){
     achievement(
         title = MapLookup[index] + " Done", points = 3, type="progression",
-        description = "Finish " + MapLookup[index] + " Era on any level",
+        description = "Finish " + MapLookup[index] + " in one session",
         trigger =
-            worlds() == index &&
+            once(StartLevel(index, LEVEL1, true)) &&
+            never(Cheating()) &&
+            never(!InsideGame()) &&
             which_level() == LEVEL2 &&
             LevelCleared()
+
     )
 }
 
 achievement(
     title = "Virus Eradicated", points = 10, type="win_condition",
-    description = "Clear the game on any difficulty",
+    description = "Clear the game",
     trigger =
-        worlds() == BEYOND_TIME_LAST_BOSS &&
+        once(StartLevel(BEYOND_TIME_LAST_BOSS, LEVEL1, true)) &&
+        never(Cheating()) &&
+        never(!InsideGame()) &&
         LevelCleared()
 )
 
@@ -822,13 +923,14 @@ achievement(
 for index in range(0x00, 0x07){
     achievement(
         title = HardChallengeLookup[index], points = 5,
-        description = "Finish " + MapLookup[index] + " Era on hard difficulty",
+        description = "Finish " + MapLookup[index] + " in one session on hard difficulty",
         id = (416252 + index),
         trigger =
-            worlds() == index &&
+            once(StartLevel(index, LEVEL1, false)) &&
+            never(Cheating()) &&
+            never(!InsideGame()) &&
             which_level() == LEVEL2 &&
-            LevelCleared() &&
-            difficulty_selected_2() == HARD
+            LevelCleared()
     )
 }
 
@@ -837,9 +939,10 @@ achievement(
     description = "Clear the game on hard difficulty",
     id = (416260),
     trigger =
-        worlds() == BEYOND_TIME_LAST_BOSS &&
-        LevelCleared() &&
-        difficulty_selected_2() == HARD
+        once(StartLevel(BEYOND_TIME_LAST_BOSS, LEVEL1, false)) &&
+        never(Cheating()) &&
+        never(!InsideGame()) &&
+        LevelCleared()
 )
 
 // Challenge achievements (100% itens, rooms and chips)
@@ -847,10 +950,11 @@ for index in range(0x00, 0x07){
     for index2 in range(0x00, 0x01){
         achievement(
             title = HundredPerCentLookup[index + (0x10 * index2)], points = 10, type="missable",
-            description = "Collect all chips, items and hidden rooms on " + MapLookup[index] + " on Level " + (index2 + 1),
+            description = "Collect all chips and items" + CollectionLookup[index] + MapLookup[index] + " on Level " + (index2 + 1),
             trigger =
-                worlds() == index &&
-                which_level() == index2 &&
+                once(StartLevel(index, index2, false)) &&
+                never(Cheating()) &&
+                never(!InsideGame()) &&
                 LevelCleared() &&
                 GotAllHiddenBonuses(index, index2) &&
                 GotAllMemory(index, index2) &&
@@ -861,7 +965,7 @@ for index in range(0x00, 0x07){
 
 achievement(
     title = "No Life Will Be Spared", points = 1, type="missable",
-    description = "Kill the doggo in Modern Wars Era",
+    description = "Kill the doggo in Modern Wars",
     trigger =
         IsPlaying() &&
         worlds() == MODERN_WARS &&
@@ -872,7 +976,7 @@ achievement(
 
 achievement(
     title = "Completely Healthy", points = 5,
-    description = "Get full energy with maximum energy bar size",
+    description = "Reach the maximum size of four energy bars",
     trigger =
         IsPlaying() &&
         stanley_s_health() == 0x80 &&
@@ -882,7 +986,7 @@ achievement(
 
 achievement(
     title = "Like a Cat", points = 5,
-    description = "Get the maximum number of continues",
+    description = "Get the maximum number of three continues",
     trigger =
         IsPlaying() &&
         number_of_continues() == 0x03 &&
@@ -891,13 +995,16 @@ achievement(
 
 achievement(
     title = "Swallowed by Space", points = 1, type="missable",
-    description = "Lose all your effort by finishing the future era without spacesuit",
+    description = "Lose all your effort by finishing the future without using the spacesuit",
     trigger =
         worlds() == FUTURE &&
         which_level() == LEVEL2 &&
         weapon_selected() != 0x05 &&
-        repeated(10, prev(time_bar_countdown()) == time_bar_countdown()) &&
-        never(prev(time_bar_countdown()) != time_bar_countdown()) && never(paused() == PAUSED)
+        position_in_the_level() > 0xFFFF9E00 &&
+        position_in_the_level() < 0xFFFFA900 &&
+        trigger_when(stanleys_actions() == 0x01) &&
+        trigger_when(stanleys_actions2() == 0x05) &&
+        trigger_when(prev(stanleys_actions2()) == 0xff)
 )
 
 achievement(
@@ -924,7 +1031,8 @@ achievement(
         never((
             EnemiesDead(PREHISTORY) &&
             number_of_continues() < prev(number_of_continues()))
-        )
+        ) &&
+        never(Cheating())
 )
 
 achievement(
@@ -951,7 +1059,8 @@ achievement(
         never((
             EnemiesDead(ROMAN_EMPIRE) &&
             number_of_continues() < prev(number_of_continues()))
-        )
+        ) &&
+        never(Cheating())
 )
 
 achievement(
@@ -978,7 +1087,8 @@ achievement(
         never((
             EnemiesDead(JAPANESE_MIDDLE_AGE) &&
             number_of_continues() < prev(number_of_continues()))
-        )
+        ) &&
+        never(Cheating())
 )
 
 achievement(
@@ -1005,7 +1115,8 @@ achievement(
         never((
             EnemiesDead(EUROPEAN_MIDDLE_AGE) &&
             number_of_continues() < prev(number_of_continues()))
-        )
+        ) &&
+        never(Cheating())
 )
 
 achievement(
@@ -1032,12 +1143,13 @@ achievement(
         never((
             EnemiesDead(MODERN_WARS) &&
             number_of_continues() < prev(number_of_continues()))
-        )
+        ) &&
+        never(Cheating())
 )
 
 achievement(
     title = "Hard Times Commando", points = 10,
-    description = "Complete a level with no time remaining and your energy bar at size 1",
+    description = "Complete a level with no time remaining and your energy bar at the smallest size",
     trigger =
         worlds2() != COUNTING_CHIPS &&
         worlds2() != MAIN_MENU &&
@@ -1050,15 +1162,37 @@ achievement(
 
 achievement(
     title = "Upload Back to Zero", points = 5,
-    description = "Clear a level with almost no time left and full restore it consuming at least 20 chips",
+    description = "Spend at least 20 chips to restore the virus bar",
     trigger =
         worlds() <= FUTURE &&
         which_level() <= LEVEL2 &&
-        measured(repeated(20, worlds2() == COUNTING_CHIPS &&
-        chip_counter_main() < prev(chip_counter_main()))) &&
+        repeated(20, worlds2() == COUNTING_CHIPS &&
+        chip_counter_main() < prev(chip_counter_main())) &&
         time_bar_countdown() == 0x57E4 &&
         prev(time_bar_countdown()) < 0x57E4 &&
         never(inside_levels() == 0x00)
+)
+
+achievement(
+    title = "There Is No Secret for a Time Commander", points = 5,
+    description = "Beat the secret level",
+    trigger =
+        once(StartLevelSecret()) &&
+        never(Cheating()) &&
+        never(!InsideGame()) &&
+        LevelCleared()
+)
+
+achievement(
+    title = "There Is No Time to Waste", points = 10,
+    description = "Beat the secret level in less than 60 seconds",
+    trigger =
+        once(StartLevelSecret()) &&
+        never(Cheating()) &&
+        never(!InsideGame()) &&
+        never(inside_levels() != 0x00 && repeated(2, ElapsedTime() >= 6000
+        )) &&
+        trigger_when(LevelCleared())
 )
 
 // LEADERBOARD #############################################################################################################
@@ -1080,9 +1214,13 @@ for index in range(0x00, 0x07){
         leaderboard
         (
            MapLookup[index] + " Level " + (index2 + 1) + " Hardcore Completionist",
-           "Complete Level " + (index2 + 1) + " from " + MapLookup[index] + " in level hard collecting
+           "Complete Level " + (index2 + 1) + " from " + MapLookup[index] + " in hard difficulty collecting
  all hidden bonuses" + LeaderText(HiddenRoomLookup[index + (0x10 * index2)]) + "as fast as you can!",
-           StartLevel(index, index2, false),
+           LevelCleared() &&
+                hidden_bonuses() == HiddenBonusLookup[index + (16*index2)] &&
+                memory_clean() == MemoryCleanLookup[index + (16*index2)] &&
+                worlds() == index &&
+                which_level() == index2,
            Cheating()  || game_mode() != PLAYING || !InsideGame() ||
            (LevelCleared() &&
                 (hidden_bonuses() != HiddenBonusLookup[index + (16*index2)] ||
@@ -1090,7 +1228,9 @@ for index in range(0x00, 0x07){
            ),
            LevelCleared() &&
                 hidden_bonuses() == HiddenBonusLookup[index + (16*index2)] &&
-                memory_clean() == MemoryCleanLookup[index + (16*index2)],
+                memory_clean() == MemoryCleanLookup[index + (16*index2)] &&
+                worlds() == index &&
+                which_level() == index2,
            measured(ElapsedTime()),
            format = "MILLISECS",    //Actually centiseconds
            lower_is_better = true
@@ -1098,10 +1238,22 @@ for index in range(0x00, 0x07){
     }
 }
 
+leaderboard
+(
+    "Fastest Fighter of All Time",
+    "Beat the secret level as fast as you can!",
+    StartLevelSecret(),
+    Cheating()  || game_mode() != PLAYING || !InsideGame(),
+    LevelCleared(),
+    measured(ElapsedTime()),
+    format = "MILLISECS",    //Actually centiseconds
+    lower_is_better = true
+)
+
 // RICHPRESENCE #############################################################################################################
 
 rich_presence_conditional_display(IsPlaying() && time_bar_countdown() < 0x57E4 && time_bar_countdown() > 0x00,
-" Stanley is in Level {0} of {1} Era on {2} difficulty || Weapon: {3} || Energy: {4} || Continues: {5} || Chips: {6} || Timer: {7}",
+" Stanley is in Level {0} of {1} on {2} difficulty • Weapon: {3} • Energy: {4} • Continues: {5} • Chips: {6} • Timer: {7}",
     rich_presence_lookup("Level", which_level(), LevelLookup),
     rich_presence_lookup("Era", worlds(), MapLookup, fallback="Somewhere else"),
     rich_presence_lookup("Difficulty", difficulty_selected_2(), DifficultyLookup),
