@@ -762,80 +762,80 @@ WeaponCollectorLookUp = {
 
 WeaponEquippedLookUp = {
     // Prehistory
-    0x00: "bare hands",
-    0x01: "rocks",
-    0x02: "knife",
-    0x03: "wood club",
-    0x04: "spear",
-    0x05: "giant wooden club",
+    0x00: "Bare Hands",
+    0x01: "Rocks",
+    0x02: "Knife",
+    0x03: "Wood Club",
+    0x04: "Spear",
+    0x05: "Giant Wooden Club",
 
     // Roman Empire
-    0x06: "bare hands",
-    0x07: "dagger",
-    0x08: "gladius",
-    0x09: "sling",
-    0x0a: "trident with shield",
-    0x0b: "battle-axe",
+    0x06: "Bare Hands",
+    0x07: "Dagger",
+    0x08: "Gladius",
+    0x09: "Sling",
+    0x0a: "Trident with Shield",
+    0x0b: "Battle-Axe",
 
     // Japanese Middle Age
-    0x0c: "bare hands",
-    0x0d: "fans",
-    0x0e: "shurikens",
-    0x0f: "katana",
-    0x10: "dao",
-    0x11: "fireball",
+    0x0c: "Bare Hands",
+    0x0d: "Fans",
+    0x0e: "Shurikens",
+    0x0f: "Katana",
+    0x10: "Dao",
+    0x11: "Fireball",
 
     // European Middle Age
-    0x12: "bare hands",
-    0x13: "morning star",
-    0x14: "sword and shield",
-    0x15: "longsword",
-    0x16: "crossbow",
-    0x17: "parchment",
+    0x12: "Bare Hands",
+    0x13: "Morning Star",
+    0x14: "Sword and Shield",
+    0x15: "Longsword",
+    0x16: "Crossbow",
+    0x17: "Parchment",
 
     // Conquistadors
-    0x18: "bare hands",
-    0x19: "sabre",
-    0x1a: "halberd",
-    0x1b: "flintlock",
-    0x1c: "wooden club with obsidian blades",
-    0x1d: "blowgun",
+    0x18: "Bare Hands",
+    0x19: "Sabre",
+    0x1a: "Halberd",
+    0x1b: "Flintlock",
+    0x1c: "Wooden Club with Obsidian Blades",
+    0x1d: "Blowgun",
 
     // Wild West
-    0x1e: "bare hands",
-    0x1f: "revolver",
-    0x20: "shotgun",
-    0x21: "winchester rifle",
-    0x22: "dynamite",
-    0x23: "dual-wielded revolvers",
+    0x1e: "Bare Hands",
+    0x1f: "Revolver",
+    0x20: "Shotgun",
+    0x21: "Winchester Rifle",
+    0x22: "Dynamite",
+    0x23: "Dual-Wielded Revolvers",
 
     // Modern Wars
-    0x24: "bare hands",
-    0x25: "revolver",
-    0x26: "enfield bayonet",
+    0x24: "Bare Hands",
+    0x25: "Revolver",
+    0x26: "Enfield Bayonet",
     0x27: "AK-47",
-    0x28: "hand grenade",
-    0x29: "rocket launcher",
+    0x28: "Hand Grenade",
+    0x29: "Rocket Launcher",
 
     // Future
-    0x2a: "bare hands",
-    0x2b: "laser pistol",
-    0x2c: "laser machine gun",
-    0x2d: "yo-yo",
-    0x2e: "atomic grenades",
-    0x2f: "astronaut suit",
+    0x2a: "Bare Hands",
+    0x2b: "Laser Pistol",
+    0x2c: "Laser Machine Gun",
+    0x2d: "Yo-Yo",
+    0x2e: "Atomic Grenades",
+    0x2f: "Astronaut Suit",
 
     // Beyond Time
-    0x30: "bare hands",
-    0x31: "crystal stars",
+    0x30: "Bare Hands",
+    0x31: "Crystal Stars",
 
     // Beyond Time part 2
-    0x36: "bare hands",
-    0x37: "crystal stars",
+    0x36: "Bare Hands",
+    0x37: "Crystal Stars",
 
     // Beyond Time part 3
-    0x3c: "bare hands",
-    0x3d: "crystal stars",
+    0x3c: "Bare Hands",
+    0x3d: "Crystal Stars",
 }
 
 WhenPausedLookup = {
@@ -952,7 +952,7 @@ for index in range(0x00, 0x07){
             title = HundredPerCentLookup[index + (0x10 * index2)], points = 10, type="missable",
             description = "Collect all chips and items" + CollectionLookup[index] + MapLookup[index] + " on Level " + (index2 + 1),
             trigger =
-                once(StartLevel(index, index2, false)) &&
+                once(StartLevel(index, index2, true)) &&
                 never(Cheating()) &&
                 never(!InsideGame()) &&
                 LevelCleared() &&
