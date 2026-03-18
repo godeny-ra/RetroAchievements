@@ -898,7 +898,7 @@ achievement(
 for index in range(0x00, 0x07){
     achievement(
         title = MapLookup[index] + " Done", points = 3, type="progression",
-        description = "Finish " + MapLookup[index] + " in one session",
+        description = "Finish " + MapLookup[index],
         trigger =
             once(StartLevel(index, LEVEL1, true)) &&
             never(Cheating()) &&
@@ -911,7 +911,7 @@ for index in range(0x00, 0x07){
 
 achievement(
     title = "Virus Eradicated", points = 10, type="win_condition",
-    description = "Clear the game",
+    description = "Kill the virus to win your battle through time",
     trigger =
         once(StartLevel(BEYOND_TIME_LAST_BOSS, LEVEL1, true)) &&
         never(Cheating()) &&
@@ -923,7 +923,7 @@ achievement(
 for index in range(0x00, 0x07){
     achievement(
         title = HardChallengeLookup[index], points = 5,
-        description = "Finish " + MapLookup[index] + " in one session on hard difficulty",
+        description = "Finish " + MapLookup[index] + " on hard difficulty",
         id = (416252 + index),
         trigger =
             once(StartLevel(index, LEVEL1, false)) &&
