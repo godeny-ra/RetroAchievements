@@ -573,6 +573,12 @@ function LeaderText(option) {
     return " and memory "
 }
 
+function Secret() {
+    return
+        worlds() == 0x09 &&
+        which_level() == 0x01
+}
+
 function StartLevel(world, level, noDifficulty) {
     return
         IsPlaying() &&
@@ -1213,27 +1219,22 @@ for index in range(0x00, 0x07){
 
         leaderboard
         (
-           MapLookup[index] + " Level " + (index2 + 1) + " Hardcore Completionist",
-           "Complete Level " + (index2 + 1) + " from " + MapLookup[index] + " in hard difficulty collecting
+            MapLookup[index] + " Level " + (index2 + 1) + " Hardcore Completionist",
+            "Complete Level " + (index2 + 1) + " from " + MapLookup[index] + " in hard difficulty collecting
  all hidden bonuses" + LeaderText(HiddenRoomLookup[index + (0x10 * index2)]) + "as fast as you can!",
-           LevelCleared() &&
+            once(StartLevel(index, index2, true)) &&
+                worlds() == index &&
+                which_level() == index2 &&
+                LevelCleared() &&
                 hidden_bonuses() == HiddenBonusLookup[index + (16*index2)] &&
                 memory_clean() == MemoryCleanLookup[index + (16*index2)] &&
-                worlds() == index &&
-                which_level() == index2,
-           Cheating()  || game_mode() != PLAYING || !InsideGame() ||
-           (LevelCleared() &&
-                (hidden_bonuses() != HiddenBonusLookup[index + (16*index2)] ||
-                memory_clean() != MemoryCleanLookup[index + (16*index2)])
-           ),
-           LevelCleared() &&
-                hidden_bonuses() == HiddenBonusLookup[index + (16*index2)] &&
-                memory_clean() == MemoryCleanLookup[index + (16*index2)] &&
-                worlds() == index &&
-                which_level() == index2,
-           measured(ElapsedTime()),
-           format = "MILLISECS",    //Actually centiseconds
-           lower_is_better = true
+                never(Cheating() && worlds() == index && which_level() == index2) &&
+                never(game_mode() != PLAYING),
+            always_false(),
+            always_true(),
+            measured(ElapsedTime()),
+            format = "MILLISECS",    //Actually centiseconds
+            lower_is_better = true
         )
     }
 }
@@ -1252,8 +1253,10 @@ leaderboard
 
 // RICHPRESENCE #############################################################################################################
 
-rich_presence_conditional_display(IsPlaying() && time_bar_countdown() < 0x57E4 && time_bar_countdown() > 0x00,
-" Stanley is in Level {0} of {1} on {2} difficulty • Weapon: {3} • Energy: {4} • Continues: {5} • Chips: {6} • Timer: {7}",
+
+
+rich_presence_conditional_display(IsPlaying() && !Secret(),
+"Stanley is in Level {0} of {1} on {2} difficulty • Weapon: {3} • Energy: {4} • Continues: {5} • Chips: {6} • Timer: {7}",
     rich_presence_lookup("Level", which_level(), LevelLookup),
     rich_presence_lookup("Era", worlds(), MapLookup, fallback="Somewhere else"),
     rich_presence_lookup("Difficulty", difficulty_selected_2(), DifficultyLookup),
@@ -1261,6 +1264,12 @@ rich_presence_conditional_display(IsPlaying() && time_bar_countdown() < 0x57E4 &
     rich_presence_lookup("BarSize", stanley_s_energy_bar_size_1_4(), BarSizeLookup),
     rich_presence_lookup("Continues", number_of_continues(), ContinuesLookup),
     rich_presence_value("Chips", chip_counter_main()),
+    rich_presence_value("Timer", ElapsedTime(), "MILLISECS")
+)
+
+rich_presence_conditional_display(game_mode() == PLAYING && paused() == 0x00 && inside_levels() != 0x00 && time_bar_countdown() == 0x57E4 && Secret(),
+"Stanley is in Secret Level • Weapon: {0} • Timer: {1}",
+    rich_presence_lookup("Weapon", (6 * worlds()) + weapon_selected(), WeaponEquippedLookUp, fallback="bare hands"),
     rich_presence_value("Timer", ElapsedTime(), "MILLISECS")
 )
 
